@@ -1,13 +1,24 @@
 package br.com.bankil.domain.conta;
 
+import br.com.bankil.ConnectionRefactory;
+import br.com.bankil.ContaDAO;
 import br.com.bankil.domain.RegraDeNegocioException;
 import br.com.bankil.domain.cliente.Cliente;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 
 public class ContaService {
+
+    private ConnectionRefactory conexao;
+
+    public ContaService() {
+        this.conexao = new ConnectionRefactory();
+    }
 
     private Set<Conta> contas = new HashSet<>();
 
@@ -20,14 +31,11 @@ public class ContaService {
         return conta.getSaldo();
     }
 
-    public void abrir(DadosAberturaConta dadosDaConta) {
-        var cliente = new Cliente(dadosDaConta.dadosCliente());
-        var conta = new Conta(dadosDaConta.numero(), cliente);
-        if (contas.contains(conta)) {
-            throw new RegraDeNegocioException("Já existe outra conta aberta com o mesmo número!");
-        }
+    public void abrir(DadosAberturaConta dadosDaConta) throws SQLException {
+        Connection conex = conexao.retornarConexao();
+        ContaDAO acoes = new ContaDAO(conex, dadosDaConta);
+        acoes.salvarContaNoBanco();
 
-        contas.add(conta);
     }
 
     public void realizarSaque(Integer numeroDaConta, BigDecimal valor) {
