@@ -1,29 +1,24 @@
 package br.com.bankil.domain.conta;
 
-import br.com.bankil.ConnectionRefactory;
-import br.com.bankil.ContaDAO;
 import br.com.bankil.domain.RegraDeNegocioException;
-import br.com.bankil.domain.cliente.Cliente;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.HashSet;
 import java.util.Set;
 
 public class ContaService {
 
-    private ConnectionRefactory conexao;
+    private ContaDAO acoes;
 
+    private Set<Conta> contas;
     public ContaService() {
-        this.conexao = new ConnectionRefactory();
+        this.acoes = new ContaDAO();
     }
 
-    private Set<Conta> contas = new HashSet<>();
 
     public Set<Conta> listarContasAbertas() {
-        return contas;
+        this.contas = this.acoes.listarContas();
+        return this.contas;
     }
 
     public BigDecimal consultarSaldo(Integer numeroDaConta) {
@@ -32,9 +27,7 @@ public class ContaService {
     }
 
     public void abrir(DadosAberturaConta dadosDaConta) throws SQLException {
-        Connection conex = conexao.retornarConexao();
-        ContaDAO acoes = new ContaDAO(conex, dadosDaConta);
-        acoes.salvarContaNoBanco();
+        this.acoes.salvarContaNoBanco(dadosDaConta);
 
     }
 
@@ -48,16 +41,19 @@ public class ContaService {
             throw new RegraDeNegocioException("Saldo insuficiente!");
         }
 
-        conta.sacar(valor);
+        BigDecimal novoSaldo = conta.getSaldo().subtract(valor);
+        acoes.alterar(conta.getNumero(), novoSaldo);
     }
 
     public void realizarDeposito(Integer numeroDaConta, BigDecimal valor) {
         var conta = buscarContaPorNumero(numeroDaConta);
+
         if (valor.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RegraDeNegocioException("Valor do deposito deve ser superior a zero!");
         }
 
-        conta.depositar(valor);
+        BigDecimal novoValor = conta.getSaldo().add(valor);
+        acoes.alterar(conta.getNumero(), novoValor);
     }
 
     public void encerrar(Integer numeroDaConta) {
@@ -66,14 +62,19 @@ public class ContaService {
             throw new RegraDeNegocioException("Conta não pode ser encerrada pois ainda possui saldo!");
         }
 
-        contas.remove(conta);
+        acoes.deletarContaDoBanco(numeroDaConta);
     }
 
     private Conta buscarContaPorNumero(Integer numero) {
         return contas
                 .stream()
-                .filter(c -> c.getNumero() == numero)
+                .filter(c -> c.getNumero().equals(numero))
                 .findFirst()
                 .orElseThrow(() -> new RegraDeNegocioException("Não existe conta cadastrada com esse número!"));
+    }
+
+    public void realizarTransferencia(int numeroDaContaOrigem, int numeroDaContaDestino, BigDecimal valor) {
+        this.realizarSaque(numeroDaContaOrigem, valor);
+        this.realizarDeposito(numeroDaContaDestino, valor);
     }
 }
