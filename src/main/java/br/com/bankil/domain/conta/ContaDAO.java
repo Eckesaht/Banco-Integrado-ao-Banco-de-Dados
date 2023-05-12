@@ -3,8 +3,6 @@ package br.com.bankil.domain.conta;
 import br.com.bankil.ConnectionFactory;
 import br.com.bankil.domain.cliente.Cliente;
 import br.com.bankil.domain.cliente.DadosCadastroCliente;
-import br.com.bankil.domain.conta.Conta;
-import br.com.bankil.domain.conta.DadosAberturaConta;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -15,12 +13,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class ContaDAO {
-    private Connection con;
-    private DadosAberturaConta dadosDaConta;
+    private Connection conexao;
 
-    public void salvarContaNoBanco(DadosAberturaConta dadosDaConta) throws SQLException {
-        this.con = new ConnectionFactory().retornarConexao();
-        this.dadosDaConta = dadosDaConta;
+    protected void salvarContaNoBanco(DadosAberturaConta dadosDaConta) throws SQLException {
+        this.conexao = new ConnectionFactory().retornarConexao();
 
         var cliente = new Cliente(dadosDaConta.dadosCliente());
         var conta = new Conta(dadosDaConta.numero(), cliente, BigDecimal.ZERO, true);
@@ -29,7 +25,7 @@ public class ContaDAO {
                 "cliente_cpf, cliente_email)" +
                 "VALUE (?, ?, ?, ?, ?)";
 
-        PreparedStatement preparedStatement = con.prepareStatement(sql);
+        PreparedStatement preparedStatement = conexao.prepareStatement(sql);
 
         preparedStatement.setInt(1, conta.getNumero());
         preparedStatement.setBigDecimal(2, BigDecimal.ZERO);
@@ -39,26 +35,26 @@ public class ContaDAO {
         preparedStatement.execute();
 
         preparedStatement.close();
-        this.con.close();
+        this.conexao.close();
     }
 
-    public void deletarContaDoBanco(Integer numero) {
-        this.con = new ConnectionFactory().retornarConexao();
+    protected void deletarContaDoBanco(Integer numero) {
+        this.conexao = new ConnectionFactory().retornarConexao();
         String sql = "DELETE FROM conta WHERE numero = ?";
 
         try {
-            this.con.setAutoCommit(false);
-            PreparedStatement preparedStatement = this.con.prepareStatement(sql);
+            this.conexao.setAutoCommit(false);
+            PreparedStatement preparedStatement = this.conexao.prepareStatement(sql);
             preparedStatement.setInt(1, numero);
 
             preparedStatement.execute();
-            this.con.commit();
-            this.con.close();
+            this.conexao.commit();
+            this.conexao.close();
             preparedStatement.close();
 
         } catch (SQLException e) {
             try {
-                this.con.rollback();
+                this.conexao.rollback();
             } catch (SQLException ex) {
                 throw new RuntimeException(ex);
             }
@@ -66,13 +62,13 @@ public class ContaDAO {
         }
     }
 
-    public Set<Conta> listarContas() {
-        this.con = new ConnectionFactory().retornarConexao();
+    protected Set<Conta> listarContas() {
+        this.conexao = new ConnectionFactory().retornarConexao();
         Set<Conta> contas = new HashSet<>();
         String sql = "SELECT * FROM conta WHERE esta_ativa = true";
 
         try {
-            PreparedStatement preparedStatement = this.con.prepareStatement(sql);
+            PreparedStatement preparedStatement = this.conexao.prepareStatement(sql);
             ResultSet resultSet = preparedStatement.executeQuery();
 
             while (resultSet.next()) {
@@ -90,7 +86,7 @@ public class ContaDAO {
             }
             preparedStatement.close();
             resultSet.close();
-            this.con.close();
+            this.conexao.close();
         } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
@@ -98,25 +94,25 @@ public class ContaDAO {
         return contas;
     }
 
-    public void alterar(Integer numeroDaConta, BigDecimal valor) {
+    protected void alterar(Integer numeroDaConta, BigDecimal valor) {
 
-        this.con = new ConnectionFactory().retornarConexao();
+        this.conexao = new ConnectionFactory().retornarConexao();
         String sql = "UPDATE conta SET saldo = ? WHERE numero = ?";
 
         try {
-            this.con.setAutoCommit(false);
-            PreparedStatement preparedStatement = con.prepareStatement(sql);
+            this.conexao.setAutoCommit(false);
+            PreparedStatement preparedStatement = conexao.prepareStatement(sql);
 
             preparedStatement.setBigDecimal(1, valor);
             preparedStatement.setInt(2, numeroDaConta);
             preparedStatement.execute();
-            this.con.commit();
-            this.con.close();
+            this.conexao.commit();
+            this.conexao.close();
             preparedStatement.close();
 
         } catch (SQLException e) {
             try {
-                this.con.rollback();
+                this.conexao.rollback();
             } catch (SQLException ex) {
                 throw new RuntimeException(ex);
         }
